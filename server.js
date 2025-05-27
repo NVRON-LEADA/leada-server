@@ -16,7 +16,7 @@ const app = express();
 const server = http.createServer(app);
 
 // Allow subdomains like https://clinic1.leada-client.vercel.app
-const allowedOrigins = [/^https:\/\/.*\.leada-client\.vercel\.app$/];
+const allowedOrigins = [/^https:\/\/.*\.leada-client\.onrender\.com$/];
 
 // CORS for Express
 app.use(cors({
