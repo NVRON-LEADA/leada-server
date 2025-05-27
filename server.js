@@ -15,10 +15,10 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
-// Allow any *.lvh.me:3000 domain (like clinic1.lvh.me:3000)
-const allowedOrigins = [/^http:\/\/.*\.lvh\.me:3000$/];
+// Allow subdomains like https://clinic1.leada-client.vercel.app
+const allowedOrigins = [/^https:\/\/.*\.leada-client\.vercel\.app$/];
 
-// Configure CORS for Express
+// CORS for Express
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.some(pattern => pattern.test(origin))) {
@@ -33,7 +33,7 @@ app.use(cors({
 
 app.use(express.json());
 
-// Extract subdomain from hostname
+// Extract subdomain from full hostname (e.g. clinic1.leada-client.vercel.app)
 app.use((req, res, next) => {
   const host = req.headers.host;
   if (!host) {
@@ -41,9 +41,9 @@ app.use((req, res, next) => {
     return next();
   }
 
-  const hostname = host.split(':')[0];
+  const hostname = host.split(':')[0]; // remove port if present
   const parts = hostname.split('.');
-  req.subdomain = parts.length >= 3 ? parts[0] : null;
+  req.subdomain = parts.length >= 4 ? parts[0] : null; // clinic1.leada-client.vercel.app
   next();
 });
 
@@ -72,7 +72,7 @@ mongoose.connect(process.env.MONGODB_URI, {
   .then(() => console.log('✅ Connected to MongoDB'))
   .catch((err) => console.error('❌ MongoDB connection error:', err));
 
-// Handle Socket.IO connection
+// Socket.IO connection
 io.on('connection', (socket) => {
   console.log('🔌 New client connected');
 
@@ -81,7 +81,7 @@ io.on('connection', (socket) => {
   });
 });
 
-// API: Get clinic details from subdomain
+// GET Clinic Details from Subdomain
 app.get('/api/clinic', async (req, res) => {
   const subdomain = req.subdomain;
   if (!subdomain) {
@@ -105,13 +105,24 @@ app.get('/api/clinic', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+app.get('/api/clinic/:subdomain', async (req, res) => {
+  const subdomain = req.params.subdomain;
+  const clinic = await Clinic.findOne({ slug: subdomain });
 
-// Other API routes
+  if (!clinic) {
+    return res.status(404).json({ error: 'Clinic not found' });
+  }
+
+  res.json(clinic);
+});
+
+
+// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/tokens', tokensRoutes);
 app.use('/api/queue', queueRoutes);
 
-// Health check route
+// Health Check
 app.get('/', (req, res) => {
   if (req.subdomain) {
     res.json({ message: `API running for clinic "${req.subdomain}"` });
@@ -120,13 +131,13 @@ app.get('/', (req, res) => {
   }
 });
 
-// Error handler
+// Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
-// Start server
+// Start Server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
